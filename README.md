@@ -1,1 +1,1 @@
-# PeriodontitisModel
+# Periodontitis Model

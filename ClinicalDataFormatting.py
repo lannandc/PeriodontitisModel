@@ -1,6 +1,21 @@
 import tensorflow as tf
 import pandas as pd
 import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+import numpy as np
+import math
+from tensorflow import keras
+from tensorflow.keras import layers
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import make_classification
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
 
 SubjectInfo = pd.read_csv("/Users/lannacaruth/Documents/ads_subj_lelvel_metadata_csv.csv")
 SubjectInfoInclude = SubjectInfo[SubjectInfo["COMPLEFL"]== "Y"] #remove subjects who were marked as not having completed the study
@@ -55,4 +70,52 @@ for ID in FullSubjectLevelInfo["SUBJID"]:
     abcessfn.update({ID:abcesses})
     bopfn.update({ID:bleedingteeth})
 
-                                                                        
+list = [tomissfn,abcessfn,bopfn]
+collist = ["TMISSN","NABCESS","NBOP"]
+FinalClinData = SubjectInfoInclude
+x = 0
+for dict in list:
+    ClinValues = pd.DataFrame.from_dict(dict, orient='index',columns = [str(collist[x])])
+    print(ClinValues.columns)
+    FinalClinData =  FinalClinData.join(ClinValues,lsuffix="subj",rsuffix="clin")
+    x+=1
+
+#AllData = pd.concat([FinalClinData,SubjectProgressionInfo],axis=)
+FinalClinData['SEXCD'] = np.where(FinalClinData["SEX"]=="Male",1,2)
+FinalClinData = pd.concat([FinalClinData,PRSScores],axis=1)
+AllData = FinalClinData.merge(SubjectProgressionInfo,left_index=True,right_index=True)
+AllData = AllData[['ID','PDCD', 'AGE','SEXCD','ETHNCD', 'RACECD','TMISSN', 'NABCESS','NBOP','PRScs_SCORE', 'PROGCLASS']]
+AllData = AllData.dropna()
+
+PRSTEST = pd.concat([PRSScores["PRSSTAN"],SubjectProgressionInfo],axis=1)
+#PRSTEST = PRSTEST[PRSTEST.PROGCLASS != 2]
+PRSTEST= PRSTEST.dropna()
+Q = PRSTEST.iloc[:, :-1]
+r = PRSTEST.iloc[:, -1]
+Q_train, Q_test, r_train, r_test = train_test_split(
+    Q,r,test_size=0.2, random_state=1)
+
+
+def make_logreg_classifier(Q_train, Q_test, r_train, r_test, 
+                        penalty = 'l2', C=1,  
+                        random_state =1):
+    lr = LogisticRegression(random_state = random_state, multi_class="multinomial", solver="lbfgs")
+    lr.fit(Q_train, r_train)
+    lr_preds = lr.predict(Q_test)
+    prelr, reclr, acclr = precision_score(r_test, lr_preds,average='micro'),recall_score(r_test, lr_preds,average='micro'), lr.score(Q_test,r_test)
+    
+    return (prelr, reclr, acclr), lr, lr_preds
+
+lr_scores, lr, lr_preds = make_logreg_classifier(Q_train, Q_test, r_train, r_test)
+print('Logistic Regression classifier scores:')
+print('Precision: {}, Recall: {}, Accuracy: {}'.format(lr_scores[0],lr_scores[1],lr_scores[2]))
+
+features = AllData.iloc[:, :-1]
+target = AllData.iloc[:, -1]
+X_train, X_test, y_train, y_test = train_test_split(
+    features, target, test_size=0.2, random_state=1)
+
+clf = MLPClassifier(random_state=1, hidden_layer_sizes= [100,50,50], max_iter=500,activation='relu',solver="lbfgs").fit(X_train, y_train)
+#clf.predict_proba(X_test[:1])
+#clf.predict(X_test[:5, :])
+clf.score(X_test, y_test)

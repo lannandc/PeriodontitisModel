@@ -159,11 +159,6 @@ lr_testing = lr
 lr_vis = RocCurveDisplay.from_estimator(lr, Q_test,r_test)
 
 
-
-# %%
-
-
-# %%
 #Clinical Only Testing
 ClinicalFeatures = CLINTEST.iloc[:, :-1]
 ClinicalTarget = CLINTEST.iloc[:, -1]
@@ -176,8 +171,6 @@ print('Precision: {}, Recall: {}, Accuracy: {}'.format(lr_clinscores[0],lr_score
 
 lr_clinvis = RocCurveDisplay.from_estimator(lrclin, f_test,T_test)
 
-
-# %%
 
 #PRS and Clinical logistic regression
 
